@@ -16,5 +16,14 @@ export default defineConfig({
 			// See https://svelte.dev/docs/kit/adapters for more information about adapters.
 			adapter: adapter()
 		})
-	]
+	],
+    serve: {
+        headers: {
+            'Cross-Origin-Opener-Policy': 'same-origin',
+            'Cross-Origin-Embedder-Policy': 'require-corp'
+        },
+        optimizeDeps: {
+            exclude: ['@sqlite.org/sqlite-wasm']
+        }
+    }
 });
