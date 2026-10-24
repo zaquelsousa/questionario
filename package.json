@@ -25,6 +25,9 @@
 		"#lib/*": "./src/lib/*"
 	},
 	"dependencies": {
-		"@sqlite.org/sqlite-wasm": "^3.54.1-build1"
+		"@sqlite.org/sqlite-wasm": "^3.54.1-build1",
+		"@tailwindcss/vite": "^4.3.3",
+		"svelte-dnd-action": "^0.9.80",
+		"tailwindcss": "^4.3.3"
 	}
 }

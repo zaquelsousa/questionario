@@ -1,5 +1,3 @@
-// place files you want to import through the `#lib` alias in this folder.
-
 export type QuestionType =  | 'open'| 'closed' | 'multiple-choice' | 'priority';
 
 export interface Question {
@@ -8,7 +6,7 @@ export interface Question {
     type: QuestionType;
     required: boolean;
     options: string[]
-    answer?: string;
+    answers: Record<string, string | string[]>;
 }
 
 export interface Questionnaire {
