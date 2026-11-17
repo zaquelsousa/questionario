@@ -1,152 +1,311 @@
+
 <script lang="ts">
-import type { Question, Questionnaire, QuestionType } from '#lib';
+    import type { Question, Questionnaire, QuestionType } from '#lib';
+    import BackHome from '#lib/components/BackHome.svelte';
 
-let description = $state('');
-let type = $state<QuestionType>('open');
-let required = $state(false);
-let options = $state(['', '']);
+    // Question form
+    let description = $state('');
+    let type = $state<QuestionType>('open');
+    let required = $state(false);
+    let options = $state(['', '']);
 
-let questionnaire = $state<Questionnaire | null>(null);
+    let questions = $state<Question[]>([]);
+    let editingQuestionId = $state<string | null>(null);
 
-//let questions: Question[] = []
-let questions = $state<Question[]>([]);
-let editingQuestionId = $state<string | null>(null);
+    // Save modal
+    let showSaveModal = $state(false);
+    let questionnaireTitle = $state('');
+    let modalError = $state('');
+    let questionnaire = $state<Questionnaire | null>(null);
 
-function handleSubmit(event: SubmitEvent) {
-    event.preventDefault();
+    // Visual feedback
+    let feedback = $state<{ message: string; type: 'success' } | null>(null);
+    let feedbackTimeout: ReturnType<typeof setTimeout> | undefined;
 
-    const question: Question = {
-        id: editingQuestionId ?? crypto.randomUUID(),
-        description,
-        type,
-        required,
-        options: type === 'open'
-            ? []
-            : options.map(option => option.trim()).filter(Boolean)
-    };
+    function showFeedback(message: string) {
+        feedback = { message, type: 'success' };
 
-    if (editingQuestionId) {
-        const index = questions.findIndex(
-            q => q.id === editingQuestionId
-        );
-
-        if (index !== -1) {
-            questions[index] = question;
+        if (feedbackTimeout) {
+            clearTimeout(feedbackTimeout);
         }
-    } else {
-        questions.push(question);
+
+        feedbackTimeout = setTimeout(() => {
+            feedback = null;
+            feedbackTimeout = undefined;
+        }, 3000);
     }
-    
-    console.log(question);
-    resetForm();
-}
 
-function resetForm() {
-    description = '';
-    type = 'open';
-    required = false;
-    options = ['', ''];
-    editingQuestionId = null;
-}
+    function dismissFeedback() {
+        feedback = null;
 
-function addOption() {
-    options.push('');
-}
+        if (feedbackTimeout) {
+            clearTimeout(feedbackTimeout);
+            feedbackTimeout = undefined;
+        }
+    }
 
-function editQuestion(question: Question) {
-    editingQuestionId = question.id;
-    description = question.description;
-    type = question.type;
-    required = question.required;
-    options = question.options.length
-        ? [...question.options]
-        : ['', ''];
-}
+    function generateId(): string {
+        if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+            return crypto.randomUUID();
+        }
 
-function deleteQuestion(id: string) {
-    questions = questions.filter(q => q.id !== id);
+        if (typeof crypto !== 'undefined' && crypto.getRandomValues) {
+            const bytes = crypto.getRandomValues(new Uint8Array(16));
 
-    if (editingQuestionId === id) {
+            bytes[6] = (bytes[6] & 0x0f) | 0x40;
+            bytes[8] = (bytes[8] & 0x3f) | 0x80;
+
+            const hex = Array.from(bytes, b =>
+                b.toString(16).padStart(2, '0')
+            ).join('');
+
+            return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
+        }
+
+        return `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+    }
+
+    // Create or update a question
+    function saveQuestion() {
+        const cleanDescription = description.trim();
+
+        if (!cleanDescription) {
+            description = '';
+            return;
+        }
+
+        const question: Question = {
+            id: editingQuestionId ?? generateId(),
+            description: cleanDescription,
+            type,
+            required,
+            options:
+                type === 'open'
+                    ? []
+                    : options.map(option => option.trim()).filter(Boolean)
+        };
+
+        if (editingQuestionId) {
+            const index = questions.findIndex(
+                item => item.id === editingQuestionId
+            );
+
+            if (index !== -1) {
+                questions[index] = question;
+            }
+            showFeedback('Question updated successfully');
+        } else {
+            questions.push(question);
+            showFeedback('Question created successfully');
+        }
+
         resetForm();
     }
-}
 
-function removeOption(index: number) {
-    options.splice(index, 1);
-}
-
-
-function saveQuestionnaire() {
-    if (questions.length === 0) {
-        alert('deve ter pelo menos uma pergunta ne fi.');
-        return;
+    // Standard form submission
+    function handleSubmit(event: SubmitEvent) {
+        event.preventDefault();
+        saveQuestion();
     }
-    const title = prompt('Nome do questionário:');
 
-    if (!title?.trim()) return;
+    function resetForm() {
+        description = '';
+        type = 'open';
+        required = false;
+        options = ['', ''];
+        editingQuestionId = null;
+    }
 
-    questionnaire = {
-        id: crypto.randomUUID(),
-        title: title.trim(),
-        questions: [...questions]
-    };
+    function addOption() {
+        options.push('');
+    }
 
-    console.log(questionnaire);
-    localStorage.setItem(
-        questionnaire.id,
-        JSON.stringify(questionnaire)
-    );
-}
+    function removeOption(index: number) {
+        if (options.length <= 2) return;
+        options.splice(index, 1);
+    }
 
+    function editQuestion(question: Question) {
+        editingQuestionId = question.id;
+        description = question.description;
+        type = question.type;
+        required = question.required;
+        options = question.options.length
+            ? [...question.options]
+            : ['', ''];
+
+        window.scrollTo({
+            top: 0,
+            behavior: 'smooth'
+        });
+    }
+
+    function deleteQuestion(id: string) {
+        questions = questions.filter(question => question.id !== id);
+
+        if (editingQuestionId === id) {
+            resetForm();
+        }
+
+        showFeedback('Question deleted successfully');
+    }
+
+    // Questionnaire save modal
+    function openSaveModal() {
+        questionnaireTitle = '';
+        modalError = '';
+        showSaveModal = true;
+
+        if (questions.length === 0) {
+            modalError = 'Create at least one question first.';
+        }
+    }
+
+    function saveQuestionnaire() {
+        if (questions.length === 0) {
+            modalError = 'Create at least one question first.';
+            return;
+        }
+
+        const title = questionnaireTitle.trim();
+
+        if (!title) {
+            modalError = 'Enter a name for your questionnaire.';
+            return;
+        }
+
+        questionnaire = {
+            id: generateId(),
+            title,
+            questions: [...questions]
+        };
+
+        localStorage.setItem(
+            questionnaire.id,
+            JSON.stringify(questionnaire)
+        );
+
+        showSaveModal = false;
+        showFeedback('Questionnaire saved successfully');
+    }
 </script>
 
+<svelte:head>
+    <title>Questionnaire Builder</title>
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1, viewport-fit=cover"
+    />
+</svelte:head>
 
-<div class="min-h-screen bg-slate-50 px-4 py-8 sm:px-8">
+{#if feedback}
+    <div
+        class="fixed right-4 top-4 z-[60] flex w-[calc(100%-2rem)] max-w-sm items-start gap-3 rounded-xl border border-emerald-200 bg-white p-4 shadow-lg shadow-slate-900/10"
+        role="status"
+        aria-live="polite"
+    >
+        <div class="flex size-9 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-emerald-700">
+            <svg
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2.5"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                class="size-5"
+                aria-hidden="true"
+            >
+                <path d="m5 12 4 4L19 6" />
+            </svg>
+        </div>
+
+        <div class="min-w-0 flex-1 pt-1">
+            <p class="text-sm font-semibold text-slate-900">
+                Success
+            </p>
+            <p class="mt-0.5 break-words text-sm text-slate-600">
+                {feedback.message}
+            </p>
+        </div>
+
+        <button
+            type="button"
+            onclick={dismissFeedback}
+            aria-label="Dismiss notification"
+            class="-mr-1 -mt-1 flex size-8 shrink-0 items-center justify-center rounded-lg text-lg text-slate-400 hover:bg-slate-100 hover:text-slate-700"
+        >
+            &times;
+        </button>
+    </div>
+{/if}
+
+<div class="min-h-screen bg-slate-50 px-4 py-6 pb-36 sm:px-8 sm:py-8 sm:pb-8">
     <div class="mx-auto max-w-6xl">
 
+        <!-- Page header -->
         <header class="mb-8">
             <p class="text-sm font-semibold uppercase tracking-widest text-indigo-600">
                 Questionnaire builder
             </p>
-            <h1 class="mt-2 text-3xl font-bold tracking-tight text-slate-900">
+
+            <div class="mt-4">
+                <BackHome />
+            </div>
+
+            <h1 class="mt-2 text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">
                 Create your questionnaire
             </h1>
-            <p class="mt-2 text-slate-500">
+
+            <p class="mt-2 text-sm text-slate-500 sm:text-base">
                 Build, organize and manage your questions.
             </p>
         </header>
 
         <div class="grid grid-cols-1 items-start gap-8 lg:grid-cols-5">
 
-            <!-- Question editor -->
-            <section class="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm lg:col-span-2">
+            <!-- Editor -->
+            <section class="min-w-0 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-6 lg:col-span-2">
                 <h2 class="mb-6 text-xl font-semibold text-slate-900">
                     {editingQuestionId ? 'Edit question' : 'New question'}
                 </h2>
 
-                <form onsubmit={handleSubmit} class="space-y-6">
-
+                <form
+                    id="question-form"
+                    onsubmit={handleSubmit}
+                    class="space-y-6"
+                >
+                    <!-- Description -->
                     <div>
-                        <label for="description" class="mb-2 block text-sm font-medium text-slate-700">
+                        <label
+                            for="description"
+                            class="mb-2 block text-sm font-medium text-slate-700"
+                        >
                             Question
                         </label>
+
                         <input
                             id="description"
                             bind:value={description}
                             required
-                            placeholder="e.g. What is your favorite language?"
-                            class="w-full rounded-lg border border-slate-300 px-4 py-3 text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
+                            placeholder="What is your favorite language?"
+                            class="min-h-12 w-full rounded-lg border border-slate-300 px-4 py-3 text-base text-slate-900 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
                         />
                     </div>
 
+                    <!-- Type -->
                     <div>
-                        <label for="type" class="mb-2 block text-sm font-medium text-slate-700">
+                        <label
+                            for="question-type"
+                            class="mb-2 block text-sm font-medium text-slate-700"
+                        >
                             Question type
                         </label>
+
                         <select
-                            id="type"
+                            id="question-type"
                             bind:value={type}
-                            class="w-full rounded-lg border border-slate-300 bg-white px-4 py-3 text-slate-800 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
+                            class="min-h-12 w-full rounded-lg border border-slate-300 bg-white px-4 py-3 text-base text-slate-800 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
                         >
                             <option value="open">Open-ended</option>
                             <option value="closed">Single choice</option>
@@ -155,29 +314,33 @@ function saveQuestionnaire() {
                         </select>
                     </div>
 
+                    <!-- Options -->
                     {#if type === 'multiple-choice' || type === 'priority' || type === 'closed'}
                         <div class="space-y-3">
-                            <div class="flex items-center justify-between">
-                                <label class="text-sm font-medium text-slate-700">
+                            <div class="flex items-center justify-between gap-2">
+                                <span class="text-sm font-medium text-slate-700">
                                     Answer options
-                                </label>
+                                </span>
+
                                 <span class="text-xs text-slate-400">
                                     {options.length} options
                                 </span>
                             </div>
 
-                            {#each options as option, index}
-                                <div class="flex gap-2" key={index}>
+                            {#each options as option, index (index)}
+                                <div class="flex min-w-0 gap-2">
                                     <input
                                         bind:value={options[index]}
                                         placeholder={`Option ${index + 1}`}
-                                        class="min-w-0 flex-1 rounded-lg border border-slate-300 px-3 py-2.5 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
+                                        aria-label={`Option ${index + 1}`}
+                                        class="min-h-12 w-0 min-w-0 flex-1 rounded-lg border border-slate-300 px-3 py-3 text-base outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
                                     />
+
                                     <button
                                         type="button"
                                         onclick={() => removeOption(index)}
                                         disabled={options.length <= 2}
-                                        class="rounded-lg px-3 text-sm font-medium text-rose-600 transition hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-30"
+                                        class="min-h-12 shrink-0 rounded-lg px-2 text-sm font-medium text-rose-600 hover:bg-rose-50 disabled:opacity-30 sm:px-3"
                                     >
                                         Remove
                                     </button>
@@ -187,33 +350,37 @@ function saveQuestionnaire() {
                             <button
                                 type="button"
                                 onclick={addOption}
-                                class="w-full rounded-lg border border-dashed border-indigo-300 px-4 py-3 text-sm font-medium text-indigo-600 transition hover:bg-indigo-50"
+                                class="min-h-12 w-full rounded-lg border border-dashed border-indigo-300 px-4 py-3 text-sm font-medium text-indigo-600 hover:bg-indigo-50"
                             >
                                 + Add option
                             </button>
                         </div>
                     {/if}
 
+                    <!-- Required -->
                     <label class="flex cursor-pointer items-center gap-3 rounded-lg bg-slate-50 p-4">
                         <input
                             type="checkbox"
                             bind:checked={required}
-                            class="size-4 accent-indigo-600"
+                            class="size-5 shrink-0 accent-indigo-600"
                         />
+
                         <span>
                             <span class="block text-sm font-medium text-slate-800">
                                 Required question
                             </span>
+
                             <span class="text-xs text-slate-500">
                                 Respondents must answer this question.
                             </span>
                         </span>
                     </label>
 
-                    <div class="space-y-3 border-t border-slate-100 pt-5">
+                    <!-- Desktop actions -->
+                    <div class="hidden space-y-3 border-t border-slate-100 pt-5 sm:block">
                         <button
                             type="submit"
-                            class="w-full rounded-lg bg-indigo-600 px-4 py-3 font-semibold text-white shadow-sm transition hover:bg-indigo-700 active:scale-[0.99]"
+                            class="min-h-12 w-full rounded-lg bg-indigo-600 px-4 py-3 font-semibold text-white hover:bg-indigo-700"
                         >
                             {editingQuestionId ? 'Update question' : '+ Create question'}
                         </button>
@@ -222,7 +389,7 @@ function saveQuestionnaire() {
                             <button
                                 type="button"
                                 onclick={resetForm}
-                                class="w-full rounded-lg border border-slate-300 px-4 py-3 font-medium text-slate-600 transition hover:bg-slate-50"
+                                class="min-h-12 w-full rounded-lg border border-slate-300 px-4 py-3 font-medium text-slate-600 hover:bg-slate-50"
                             >
                                 Cancel editing
                             </button>
@@ -230,8 +397,8 @@ function saveQuestionnaire() {
 
                         <button
                             type="button"
-                            onclick={saveQuestionnaire}
-                            class="w-full rounded-lg border border-slate-200 px-4 py-3 font-medium text-slate-700 transition hover:border-indigo-300 hover:bg-indigo-50 hover:text-indigo-700"
+                            onclick={openSaveModal}
+                            class="min-h-12 w-full rounded-lg border border-slate-200 px-4 py-3 font-medium text-slate-700 hover:border-indigo-300 hover:bg-indigo-50"
                         >
                             Save questionnaire
                         </button>
@@ -240,12 +407,13 @@ function saveQuestionnaire() {
             </section>
 
             <!-- Question list -->
-            <section class="lg:col-span-3">
+            <section class="min-w-0 lg:col-span-3">
                 <div class="mb-4 flex items-center justify-between gap-4">
                     <div>
                         <h2 class="text-xl font-bold text-slate-900">
                             Your questions
                         </h2>
+
                         <p class="mt-1 text-sm text-slate-500">
                             Newest questions appear first.
                         </p>
@@ -258,8 +426,8 @@ function saveQuestionnaire() {
 
                 <div class="space-y-4">
                     {#each [...questions].reverse() as question, index (question.id)}
-                        <article class="rounded-xl border border-slate-200 bg-white p-5 shadow-sm transition hover:border-slate-300">
-                            <div class="flex items-start gap-4">
+                        <article class="min-w-0 rounded-xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
+                            <div class="flex items-start gap-3 sm:gap-4">
                                 <div class="flex size-9 shrink-0 items-center justify-center rounded-lg bg-indigo-50 text-sm font-bold text-indigo-700">
                                     {questions.length - index}
                                 </div>
@@ -288,19 +456,19 @@ function saveQuestionnaire() {
                                     {#if question.options.length > 0}
                                         <ul class="mt-4 space-y-2">
                                             {#each question.options as option}
-                                                <li class="flex items-start gap-2 text-sm text-slate-600">
-                                                    <span class="mt-0.5 text-indigo-500">•</span>
-                                                    <span class="break-words">{option}</span>
+                                                <li class="flex items-start gap-2 break-words text-sm text-slate-600">
+                                                    <span class="text-indigo-500">•</span>
+                                                    <span class="min-w-0">{option}</span>
                                                 </li>
                                             {/each}
                                         </ul>
                                     {/if}
 
-                                    <div class="mt-5 flex gap-3 border-t border-slate-100 pt-4">
+                                    <div class="mt-4 flex flex-wrap gap-2 border-t border-slate-100 pt-3">
                                         <button
                                             type="button"
                                             onclick={() => editQuestion(question)}
-                                            class="rounded-lg px-3 py-2 text-sm font-medium text-indigo-600 transition hover:bg-indigo-50"
+                                            class="min-h-11 rounded-lg px-4 py-2 text-sm font-medium text-indigo-600 hover:bg-indigo-50"
                                         >
                                             Edit
                                         </button>
@@ -308,7 +476,7 @@ function saveQuestionnaire() {
                                         <button
                                             type="button"
                                             onclick={() => deleteQuestion(question.id)}
-                                            class="rounded-lg px-3 py-2 text-sm font-medium text-rose-600 transition hover:bg-rose-50"
+                                            class="min-h-11 rounded-lg px-4 py-2 text-sm font-medium text-rose-600 hover:bg-rose-50"
                                         >
                                             Delete
                                         </button>
@@ -321,9 +489,11 @@ function saveQuestionnaire() {
                             <div class="mx-auto mb-4 flex size-14 items-center justify-center rounded-2xl bg-indigo-50 text-2xl text-indigo-600">
                                 +
                             </div>
+
                             <h3 class="font-semibold text-slate-900">
                                 No questions yet
                             </h3>
+
                             <p class="mt-2 text-sm text-slate-500">
                                 Create your first question using the editor.
                             </p>
@@ -334,4 +504,110 @@ function saveQuestionnaire() {
         </div>
     </div>
 </div>
+
+<!-- Fixed mobile action bar -->
+<div class="fixed inset-x-0 bottom-0 z-40 border-t border-slate-200 bg-white/95 p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] shadow-[0_-4px_20px_rgba(15,23,42,0.08)] backdrop-blur sm:hidden">
+    <div class="mx-auto grid max-w-lg grid-cols-2 gap-3">
+
+        <button
+    type="button"
+    onclick={saveQuestion}
+    class="min-h-12 touch-manipulation rounded-xl bg-indigo-600 px-3 py-3 text-sm font-semibold text-white"
+>
+    {editingQuestionId ? 'Update question' : '+ Create question'}
+</button>
+
+        <button
+            type="button"
+            onclick={openSaveModal}
+            class="min-h-12 touch-manipulation rounded-xl border border-slate-300 bg-white px-3 py-3 text-sm font-semibold text-slate-700 active:bg-slate-100"
+        >
+            Save questionnaire
+        </button>
+
+        {#if editingQuestionId}
+            <button
+                type="button"
+                onclick={resetForm}
+                class="col-span-2 min-h-11 rounded-xl border border-slate-300 px-4 py-2 text-sm font-medium text-slate-600"
+            >
+                Cancel editing
+            </button>
+        {/if}
+    </div>
+</div>
+
+<!-- Save modal -->
+{#if showSaveModal}
+    <div class="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-slate-950/50 p-4 backdrop-blur-sm">
+        <section
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="save-modal-title"
+            class="my-auto w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl"
+        >
+            <div class="mb-5 flex items-start justify-between gap-4">
+                <div>
+                    <h2 id="save-modal-title" class="text-xl font-bold text-slate-900">
+                        Save questionnaire
+                    </h2>
+
+                    <p class="mt-1 text-sm text-slate-500">
+                        Give your questionnaire a name.
+                    </p>
+                </div>
+
+                <button
+                    type="button"
+                    onclick={() => showSaveModal = false}
+                    aria-label="Close modal"
+                    class="min-h-11 min-w-11 rounded-lg text-2xl text-slate-400 hover:bg-slate-100 hover:text-slate-700"
+                >
+                    &times;
+                </button>
+            </div>
+
+            <form
+                onsubmit={(event) => {
+                    event.preventDefault();
+                    saveQuestionnaire();
+                }}
+            >
+                <label for="questionnaire-title" class="mb-2 block text-sm font-medium text-slate-700">
+                    Questionnaire name
+                </label>
+
+                <input
+                    id="questionnaire-title"
+                    bind:value={questionnaireTitle}
+                    placeholder="e.g. Customer satisfaction"
+                    class="min-h-12 w-full rounded-lg border border-slate-300 px-4 py-3 text-base outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
+                />
+
+                {#if modalError}
+                    <p class="mt-2 text-sm text-rose-600" role="alert">
+                        {modalError}
+                    </p>
+                {/if}
+
+                <div class="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+                    <button
+                        type="button"
+                        onclick={() => showSaveModal = false}
+                        class="min-h-12 rounded-lg border border-slate-300 px-4 py-3 text-sm font-medium text-slate-700 hover:bg-slate-50"
+                    >
+                        Cancel
+                    </button>
+
+                    <button
+                        type="submit"
+                        class="min-h-12 rounded-lg bg-indigo-600 px-5 py-3 text-sm font-semibold text-white hover:bg-indigo-700"
+                    >
+                        Save
+                    </button>
+                </div>
+            </form>
+        </section>
+    </div>
+{/if}
 

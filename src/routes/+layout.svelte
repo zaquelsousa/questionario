@@ -4,6 +4,8 @@
     import "../app.css";
 
 	let { children }: LayoutProps = $props();
+
+    export const ssr = false;
 </script>
 
 <svelte:head>
