@@ -24,11 +24,6 @@ export default defineConfig({
             'Cross-Origin-Embedder-Policy': 'require-corp'
         }
     },
-
-    optimizeDeps: {
-        exclude: ['@sqlite.org/sqlite-wasm']
-    },
-
     preview: {
         allowedHosts: ['fuckmachine.tail722d04.ts.net']
     },
