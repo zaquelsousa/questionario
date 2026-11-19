@@ -1,5 +1,6 @@
 <script lang="ts">
 import { page } from '$app/state';
+import { beforeNavigate } from '$app/navigation';
 import { onMount } from 'svelte';
 import type { Questionnaire } from '#lib';
 import BackHome from '#lib/components/BackHome.svelte';
@@ -8,6 +9,33 @@ let questionnaire = $state<Questionnaire | null>(null);
 
 let answers = $state<Record<string, string | string[]>>({});
 
+const hasAnswers = $derived(
+    Object.values(answers).some((answer) =>
+        Array.isArray(answer)
+            ? answer.length > 0
+            : answer.trim().length > 0
+    )
+);
+
+beforeNavigate(({ cancel }) => {
+    if (!hasAnswers) return;
+
+    const shouldLeave = confirm(
+        'Você tem respostas não salvas. Se sair desta página, seu progresso será perdido. Deseja continuar?'
+    );
+
+    if (!shouldLeave) {
+        cancel();
+    }
+});
+
+function handleBeforeUnload(event: BeforeUnloadEvent) {
+    if (!hasAnswers) return;
+
+    event.preventDefault();
+    event.returnValue = '';
+}
+
 onMount(() => {
     const id = page.params.id;
     const saved = localStorage.getItem(id);
@@ -15,6 +43,12 @@ onMount(() => {
     if (saved) {
         questionnaire = JSON.parse(saved);
     }
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+
+    return () => {
+        window.removeEventListener('beforeunload', handleBeforeUnload);
+    };
 });
 
 function downloadJSON(data: unknown, filename: string) {
