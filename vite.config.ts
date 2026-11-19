@@ -1,4 +1,4 @@
-import adapter from '@sveltejs/adapter-static';
+import adapter from '@sveltejs/adapter-cloudflare';
 import { sveltekit } from '@sveltejs/kit/vite';
 import { defineConfig } from 'vite';
 import tailwindcss from '@tailwindcss/vite';
@@ -7,11 +7,7 @@ export default defineConfig({
     plugins: [
         tailwindcss(),
         sveltekit({
-            adapter: adapter({
-                pages: 'build',
-                assets: 'build',
-                fallback: '200.html'
-            }),
+            adapter: adapter(),
             compilerOptions: {
                 runes: ({ filename }) =>
                     filename.split(/[/\\]/).includes('node_modules')
