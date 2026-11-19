@@ -68,6 +68,35 @@ function handleSubmit(event: SubmitEvent) {
     alert('Questionário salvo com sucesso!');
 }
 
+function exportQuestionnaire(questionnaire: Questionnaire) {
+    const template = {
+        ...questionnaire,
+        questions: questionnaire.questions.map((question) => ({
+            ...question,
+            answers: {}
+        }))
+    };
+
+    const json = JSON.stringify(template, null, 2);
+
+    const blob = new Blob([json], {
+        type: 'application/json'
+    });
+
+    const url = URL.createObjectURL(blob);
+
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `${questionnaire.title.replace(/[^a-z0-9]/gi, '_')}.json`;
+
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+
+    URL.revokeObjectURL(url);
+}
+
+
 </script>
 
 <svelte:head>
@@ -83,22 +112,50 @@ function handleSubmit(event: SubmitEvent) {
         {#if questionnaire}
             <!-- Page header -->
             <header class="mb-8">
-                <p class="text-sm font-semibold uppercase tracking-widest text-indigo-600">
-                    Questionnaire
-                </p>
+    <div class="grid grid-cols-3 items-center gap-3">
+        <!-- Esquerda: botão voltar -->
+        <div class="flex justify-start">
+            <BackHome />
+        </div>
 
-                <div class="mt-4">
-                    <BackHome />
-                </div>
+        <!-- Centro: título do questionário -->
+        <h1 class="break-words text-center text-xl font-bold tracking-tight text-slate-900 sm:text-3xl">
+            {questionnaire.title}
+        </h1>
 
-                <h1 class="mt-2 break-words text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">
-                    {questionnaire.title}
-                </h1>
+        <!-- Direita: exportar -->
+        <div class="flex justify-end">
+            <button
+                type="button"
+                onclick={() => exportQuestionnaire(questionnaire)}
+                class="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 shadow-sm transition hover:bg-slate-50 hover:border-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
+                title="Exportar modelo do questionário"
+            >
+                <!-- Ícone de download -->
+                <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    class="size-4"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                >
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                    <path d="m7 10 5 5 5-5" />
+                    <path d="M12 15V3" />
+                </svg>
 
-                <p class="mt-2 text-sm text-slate-500 sm:text-base">
-                    Answer the questions below and submit your responses.
-                </p>
-            </header>
+                <span class="hidden sm:inline">Exportar JSON</span>
+            </button>
+        </div>
+    </div>
+
+    <p class="mt-3 text-sm text-slate-500 sm:text-base">
+        Responda às perguntas abaixo e envie suas respostas.
+    </p>
+</header> 
 
             <form onsubmit={handleSubmit} class="space-y-5">
                 {#each questionnaire.questions as question, index (question.id)}

@@ -46,6 +46,91 @@ onMount(() => {
     }
 });
 
+    function generateId(): string {
+        if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+            return crypto.randomUUID();
+        }
+
+        if (typeof crypto !== 'undefined' && crypto.getRandomValues) {
+            const bytes = crypto.getRandomValues(new Uint8Array(16));
+
+            bytes[6] = (bytes[6] & 0x0f) | 0x40;
+            bytes[8] = (bytes[8] & 0x3f) | 0x80;
+
+            const hex = Array.from(bytes, b =>
+                b.toString(16).padStart(2, '0')
+            ).join('');
+
+            return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
+        }
+
+        return `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+    }
+
+async function handleImport(event: Event) {
+    const input = event.currentTarget as HTMLInputElement;
+    const file = input.files?.[0];
+
+    if (!file) return;
+
+    try {
+        const content = await file.text();
+        const imported = JSON.parse(content);
+
+        // Basic validation
+        if (
+            typeof imported !== 'object' ||
+            imported === null ||
+            typeof imported.title !== 'string' ||
+            !Array.isArray(imported.questions)
+        ) {
+            throw new Error('Invalid questionnaire format.');
+        }
+
+        // Validate questions
+        const validQuestions = imported.questions.every((q: any) =>
+            typeof q.id === 'string' &&
+            typeof q.description === 'string' &&
+            ['open', 'closed', 'multiple-choice', 'priority'].includes(q.type) &&
+            typeof q.required === 'boolean' &&
+            Array.isArray(q.options) &&
+            typeof q.answers === 'object'
+        );
+
+        if (!validQuestions) {
+            throw new Error('The file contains invalid questions.');
+        }
+
+        // Create a new questionnaire
+        const questionnaire: Questionnaire = {
+            id: generateId(),
+            title: imported.title,
+            questions: imported.questions
+        };
+
+        // Save
+        localStorage.setItem(
+            questionnaire.id,
+            JSON.stringify(questionnaire)
+        );
+
+        // Update state
+        questionnaires.push(questionnaire);
+
+        alert('Questionnaire imported successfully!');
+
+    } catch (error) {
+        console.error('Import error:', error);
+        alert(
+            error instanceof Error
+                ? error.message
+                : 'Failed to import questionnaire.'
+        );
+    } finally {
+        // Reset input so the same file can be imported again
+        input.value = '';
+    }
+}
 </script>
 
 <svelte:head>
@@ -56,9 +141,6 @@ onMount(() => {
     <div class="mx-auto max-w-6xl">
         <header class="mb-8 flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
             <div>
-                <p class="text-sm font-semibold uppercase tracking-widest text-indigo-600">
-                    Your workspace
-                </p>
                 <h1 class="mt-2 text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">
                     Questionários
                 </h1>
@@ -67,16 +149,28 @@ onMount(() => {
                 </p>
             </div>
 
-            <nav>
+            <nav class="flex flex-wrap gap-3">
+                <label
+                    class="inline-flex min-h-12 cursor-pointer items-center justify-center rounded-lg border border-slate-200 bg-white px-5 py-3 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50"
+                >
+                    Importar
+                    <input
+                        type="file"
+                        accept=".json,application/json"
+                        class="hidden"
+                        onchange={handleImport}
+                    />
+                </label>
+
                 {#each nav as n}
                     <a
                         href={n.href}
-                        class="inline-flex min-h-12 items-center justify-center rounded-lg bg-indigo-600 px-5 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
+                        class="inline-flex min-h-12 items-center justify-center rounded-lg bg-indigo-600 px-5 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-indigo-700"
                     >
                         + {n.label}
                     </a>
                 {/each}
-            </nav>
+            </nav>    
         </header>
 
         <section class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-6">

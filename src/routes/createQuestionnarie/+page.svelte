@@ -1,4 +1,3 @@
-
 <script lang="ts">
     import type { Question, Questionnaire, QuestionType } from '#lib';
     import BackHome from '#lib/components/BackHome.svelte';
@@ -93,10 +92,11 @@
             if (index !== -1) {
                 questions[index] = question;
             }
-            showFeedback('Question updated successfully');
+
+            showFeedback('Pergunta atualizada com sucesso');
         } else {
             questions.push(question);
-            showFeedback('Question created successfully');
+            showFeedback('Pergunta criada com sucesso');
         }
 
         resetForm();
@@ -147,7 +147,7 @@
             resetForm();
         }
 
-        showFeedback('Question deleted successfully');
+        showFeedback('Pergunta excluída com sucesso');
     }
 
     // Questionnaire save modal
@@ -157,20 +157,20 @@
         showSaveModal = true;
 
         if (questions.length === 0) {
-            modalError = 'Create at least one question first.';
+            modalError = 'Crie pelo menos uma pergunta antes de continuar.';
         }
     }
 
     function saveQuestionnaire() {
         if (questions.length === 0) {
-            modalError = 'Create at least one question first.';
+            modalError = 'Crie pelo menos uma pergunta antes de continuar.';
             return;
         }
 
         const title = questionnaireTitle.trim();
 
         if (!title) {
-            modalError = 'Enter a name for your questionnaire.';
+            modalError = 'Digite um nome para o questionário.';
             return;
         }
 
@@ -186,12 +186,27 @@
         );
 
         showSaveModal = false;
-        showFeedback('Questionnaire saved successfully');
+        showFeedback('Questionário salvo com sucesso');
+    }
+
+    function getQuestionTypeLabel(questionType: QuestionType): string {
+        switch (questionType) {
+            case 'open':
+                return 'Resposta aberta';
+            case 'closed':
+                return 'Escolha única';
+            case 'multiple-choice':
+                return 'Múltipla escolha';
+            case 'priority':
+                return 'Ordenação por prioridade';
+            default:
+                return questionType;
+        }
     }
 </script>
 
 <svelte:head>
-    <title>Questionnaire Builder</title>
+    <title>Criador de questionários</title>
     <meta
         name="viewport"
         content="width=device-width, initial-scale=1, viewport-fit=cover"
@@ -222,7 +237,7 @@
 
         <div class="min-w-0 flex-1 pt-1">
             <p class="text-sm font-semibold text-slate-900">
-                Success
+                Sucesso
             </p>
             <p class="mt-0.5 break-words text-sm text-slate-600">
                 {feedback.message}
@@ -232,7 +247,7 @@
         <button
             type="button"
             onclick={dismissFeedback}
-            aria-label="Dismiss notification"
+            aria-label="Fechar notificação"
             class="-mr-1 -mt-1 flex size-8 shrink-0 items-center justify-center rounded-lg text-lg text-slate-400 hover:bg-slate-100 hover:text-slate-700"
         >
             &times;
@@ -243,23 +258,15 @@
 <div class="min-h-screen bg-slate-50 px-4 py-6 pb-36 sm:px-8 sm:py-8 sm:pb-8">
     <div class="mx-auto max-w-6xl">
 
-        <!-- Page header -->
+        <!-- Cabeçalho -->
         <header class="mb-8">
-            <p class="text-sm font-semibold uppercase tracking-widest text-indigo-600">
-                Questionnaire builder
-            </p>
-
             <div class="mt-4">
                 <BackHome />
             </div>
 
             <h1 class="mt-2 text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">
-                Create your questionnaire
+                Criar questionário
             </h1>
-
-            <p class="mt-2 text-sm text-slate-500 sm:text-base">
-                Build, organize and manage your questions.
-            </p>
         </header>
 
         <div class="grid grid-cols-1 items-start gap-8 lg:grid-cols-5">
@@ -267,7 +274,7 @@
             <!-- Editor -->
             <section class="min-w-0 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-6 lg:col-span-2">
                 <h2 class="mb-6 text-xl font-semibold text-slate-900">
-                    {editingQuestionId ? 'Edit question' : 'New question'}
+                    {editingQuestionId ? 'Editar pergunta' : 'Nova pergunta'}
                 </h2>
 
                 <form
@@ -275,31 +282,31 @@
                     onsubmit={handleSubmit}
                     class="space-y-6"
                 >
-                    <!-- Description -->
+                    <!-- Descrição -->
                     <div>
                         <label
                             for="description"
                             class="mb-2 block text-sm font-medium text-slate-700"
                         >
-                            Question
+                            Pergunta
                         </label>
 
                         <input
                             id="description"
                             bind:value={description}
                             required
-                            placeholder="What is your favorite language?"
+                            placeholder="Qual é o seu idioma favorito?"
                             class="min-h-12 w-full rounded-lg border border-slate-300 px-4 py-3 text-base text-slate-900 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
                         />
                     </div>
 
-                    <!-- Type -->
+                    <!-- Tipo -->
                     <div>
                         <label
                             for="question-type"
                             class="mb-2 block text-sm font-medium text-slate-700"
                         >
-                            Question type
+                            Tipo de pergunta
                         </label>
 
                         <select
@@ -307,23 +314,23 @@
                             bind:value={type}
                             class="min-h-12 w-full rounded-lg border border-slate-300 bg-white px-4 py-3 text-base text-slate-800 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
                         >
-                            <option value="open">Open-ended</option>
-                            <option value="closed">Single choice</option>
-                            <option value="multiple-choice">Multiple choice</option>
-                            <option value="priority">Priority ranking</option>
+                            <option value="open">Resposta aberta</option>
+                            <option value="closed">Escolha única</option>
+                            <option value="multiple-choice">Múltipla escolha</option>
+                            <option value="priority">Ordenação por prioridade</option>
                         </select>
                     </div>
 
-                    <!-- Options -->
+                    <!-- Opções -->
                     {#if type === 'multiple-choice' || type === 'priority' || type === 'closed'}
                         <div class="space-y-3">
                             <div class="flex items-center justify-between gap-2">
                                 <span class="text-sm font-medium text-slate-700">
-                                    Answer options
+                                    Opções de resposta
                                 </span>
 
                                 <span class="text-xs text-slate-400">
-                                    {options.length} options
+                                    {options.length} opções
                                 </span>
                             </div>
 
@@ -331,8 +338,8 @@
                                 <div class="flex min-w-0 gap-2">
                                     <input
                                         bind:value={options[index]}
-                                        placeholder={`Option ${index + 1}`}
-                                        aria-label={`Option ${index + 1}`}
+                                        placeholder={`Opção ${index + 1}`}
+                                        aria-label={`Opção ${index + 1}`}
                                         class="min-h-12 w-0 min-w-0 flex-1 rounded-lg border border-slate-300 px-3 py-3 text-base outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
                                     />
 
@@ -342,7 +349,7 @@
                                         disabled={options.length <= 2}
                                         class="min-h-12 shrink-0 rounded-lg px-2 text-sm font-medium text-rose-600 hover:bg-rose-50 disabled:opacity-30 sm:px-3"
                                     >
-                                        Remove
+                                        Remover
                                     </button>
                                 </div>
                             {/each}
@@ -352,12 +359,12 @@
                                 onclick={addOption}
                                 class="min-h-12 w-full rounded-lg border border-dashed border-indigo-300 px-4 py-3 text-sm font-medium text-indigo-600 hover:bg-indigo-50"
                             >
-                                + Add option
+                                + Adicionar opção
                             </button>
                         </div>
                     {/if}
 
-                    <!-- Required -->
+                    <!-- Obrigatória -->
                     <label class="flex cursor-pointer items-center gap-3 rounded-lg bg-slate-50 p-4">
                         <input
                             type="checkbox"
@@ -367,22 +374,18 @@
 
                         <span>
                             <span class="block text-sm font-medium text-slate-800">
-                                Required question
-                            </span>
-
-                            <span class="text-xs text-slate-500">
-                                Respondents must answer this question.
+                                Pergunta obrigatória
                             </span>
                         </span>
                     </label>
 
-                    <!-- Desktop actions -->
+                    <!-- Ações para desktop -->
                     <div class="hidden space-y-3 border-t border-slate-100 pt-5 sm:block">
                         <button
                             type="submit"
                             class="min-h-12 w-full rounded-lg bg-indigo-600 px-4 py-3 font-semibold text-white hover:bg-indigo-700"
                         >
-                            {editingQuestionId ? 'Update question' : '+ Create question'}
+                            {editingQuestionId ? 'Atualizar pergunta' : '+ Criar pergunta'}
                         </button>
 
                         {#if editingQuestionId}
@@ -391,7 +394,7 @@
                                 onclick={resetForm}
                                 class="min-h-12 w-full rounded-lg border border-slate-300 px-4 py-3 font-medium text-slate-600 hover:bg-slate-50"
                             >
-                                Cancel editing
+                                Cancelar edição
                             </button>
                         {/if}
 
@@ -400,22 +403,22 @@
                             onclick={openSaveModal}
                             class="min-h-12 w-full rounded-lg border border-slate-200 px-4 py-3 font-medium text-slate-700 hover:border-indigo-300 hover:bg-indigo-50"
                         >
-                            Save questionnaire
+                            Salvar questionário
                         </button>
                     </div>
                 </form>
             </section>
 
-            <!-- Question list -->
+            <!-- Lista de perguntas -->
             <section class="min-w-0 lg:col-span-3">
                 <div class="mb-4 flex items-center justify-between gap-4">
                     <div>
                         <h2 class="text-xl font-bold text-slate-900">
-                            Your questions
+                            Suas perguntas
                         </h2>
 
                         <p class="mt-1 text-sm text-slate-500">
-                            Newest questions appear first.
+                            As perguntas mais recentes aparecem primeiro.
                         </p>
                     </div>
 
@@ -439,16 +442,16 @@
 
                                     <div class="mt-3 flex flex-wrap gap-2">
                                         <span class="rounded-md bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-600">
-                                            {question.type}
+                                            {getQuestionTypeLabel(question.type)}
                                         </span>
 
                                         {#if question.required}
                                             <span class="rounded-md bg-amber-50 px-2.5 py-1 text-xs font-medium text-amber-700">
-                                                Required
+                                                Obrigatória
                                             </span>
                                         {:else}
                                             <span class="rounded-md bg-slate-50 px-2.5 py-1 text-xs text-slate-500">
-                                                Optional
+                                                Opcional
                                             </span>
                                         {/if}
                                     </div>
@@ -470,7 +473,7 @@
                                             onclick={() => editQuestion(question)}
                                             class="min-h-11 rounded-lg px-4 py-2 text-sm font-medium text-indigo-600 hover:bg-indigo-50"
                                         >
-                                            Edit
+                                            Editar
                                         </button>
 
                                         <button
@@ -478,7 +481,7 @@
                                             onclick={() => deleteQuestion(question.id)}
                                             class="min-h-11 rounded-lg px-4 py-2 text-sm font-medium text-rose-600 hover:bg-rose-50"
                                         >
-                                            Delete
+                                            Excluir
                                         </button>
                                     </div>
                                 </div>
@@ -491,11 +494,11 @@
                             </div>
 
                             <h3 class="font-semibold text-slate-900">
-                                No questions yet
+                                Nenhuma pergunta ainda
                             </h3>
 
                             <p class="mt-2 text-sm text-slate-500">
-                                Create your first question using the editor.
+                                Crie sua primeira pergunta utilizando o editor.
                             </p>
                         </div>
                     {/each}
@@ -505,24 +508,24 @@
     </div>
 </div>
 
-<!-- Fixed mobile action bar -->
+<!-- Barra de ações mobile -->
 <div class="fixed inset-x-0 bottom-0 z-40 border-t border-slate-200 bg-white/95 p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] shadow-[0_-4px_20px_rgba(15,23,42,0.08)] backdrop-blur sm:hidden">
     <div class="mx-auto grid max-w-lg grid-cols-2 gap-3">
 
         <button
-    type="button"
-    onclick={saveQuestion}
-    class="min-h-12 touch-manipulation rounded-xl bg-indigo-600 px-3 py-3 text-sm font-semibold text-white"
->
-    {editingQuestionId ? 'Update question' : '+ Create question'}
-</button>
+            type="button"
+            onclick={saveQuestion}
+            class="min-h-12 touch-manipulation rounded-xl bg-indigo-600 px-3 py-3 text-sm font-semibold text-white"
+        >
+            {editingQuestionId ? 'Atualizar pergunta' : '+ Criar pergunta'}
+        </button>
 
         <button
             type="button"
             onclick={openSaveModal}
             class="min-h-12 touch-manipulation rounded-xl border border-slate-300 bg-white px-3 py-3 text-sm font-semibold text-slate-700 active:bg-slate-100"
         >
-            Save questionnaire
+            Salvar questionário
         </button>
 
         {#if editingQuestionId}
@@ -531,13 +534,13 @@
                 onclick={resetForm}
                 class="col-span-2 min-h-11 rounded-xl border border-slate-300 px-4 py-2 text-sm font-medium text-slate-600"
             >
-                Cancel editing
+                Cancelar edição
             </button>
         {/if}
     </div>
 </div>
 
-<!-- Save modal -->
+<!-- Modal de salvamento -->
 {#if showSaveModal}
     <div class="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-slate-950/50 p-4 backdrop-blur-sm">
         <section
@@ -549,18 +552,18 @@
             <div class="mb-5 flex items-start justify-between gap-4">
                 <div>
                     <h2 id="save-modal-title" class="text-xl font-bold text-slate-900">
-                        Save questionnaire
+                        Salvar questionário
                     </h2>
 
                     <p class="mt-1 text-sm text-slate-500">
-                        Give your questionnaire a name.
+                        Defina um nome para o seu questionário.
                     </p>
                 </div>
 
                 <button
                     type="button"
                     onclick={() => showSaveModal = false}
-                    aria-label="Close modal"
+                    aria-label="Fechar modal"
                     class="min-h-11 min-w-11 rounded-lg text-2xl text-slate-400 hover:bg-slate-100 hover:text-slate-700"
                 >
                     &times;
@@ -574,13 +577,13 @@
                 }}
             >
                 <label for="questionnaire-title" class="mb-2 block text-sm font-medium text-slate-700">
-                    Questionnaire name
+                    Nome do questionário
                 </label>
 
                 <input
                     id="questionnaire-title"
                     bind:value={questionnaireTitle}
-                    placeholder="e.g. Customer satisfaction"
+                    placeholder="Ex.: Pesquisa de satisfação"
                     class="min-h-12 w-full rounded-lg border border-slate-300 px-4 py-3 text-base outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
                 />
 
@@ -596,18 +599,17 @@
                         onclick={() => showSaveModal = false}
                         class="min-h-12 rounded-lg border border-slate-300 px-4 py-3 text-sm font-medium text-slate-700 hover:bg-slate-50"
                     >
-                        Cancel
+                        Cancelar
                     </button>
 
                     <button
                         type="submit"
                         class="min-h-12 rounded-lg bg-indigo-600 px-5 py-3 text-sm font-semibold text-white hover:bg-indigo-700"
                     >
-                        Save
+                        Salvar
                     </button>
                 </div>
             </form>
         </section>
-    </div>
+</div>
 {/if}
-
