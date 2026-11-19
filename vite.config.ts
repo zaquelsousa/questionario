@@ -1,5 +1,4 @@
-
-import adapter from '@sveltejs/adapter-auto';
+import adapter from '@sveltejs/adapter-static';
 import { sveltekit } from '@sveltejs/kit/vite';
 import { defineConfig } from 'vite';
 import tailwindcss from '@tailwindcss/vite';
@@ -8,13 +7,17 @@ export default defineConfig({
     plugins: [
         tailwindcss(),
         sveltekit({
+            adapter: adapter({
+                pages: 'build',
+                assets: 'build',
+                fallback: '200.html'
+            }),
             compilerOptions: {
                 runes: ({ filename }) =>
-                filename.split(/[/\\]/).includes('node_modules')
-                    ? undefined
-                    : true
-            },
-            adapter: adapter()
+                    filename.split(/[/\\]/).includes('node_modules')
+                        ? undefined
+                        : true
+            }
         })
     ],
 
@@ -24,9 +27,8 @@ export default defineConfig({
             'Cross-Origin-Embedder-Policy': 'require-corp'
         }
     },
+
     preview: {
         allowedHosts: ['fuckmachine.tail722d04.ts.net']
-    },
-
+    }
 });
-

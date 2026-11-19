@@ -6,6 +6,7 @@
 	let { children }: LayoutProps = $props();
 
     export const ssr = false;
+    //export const prerender = true;
 </script>
 
 <svelte:head>
