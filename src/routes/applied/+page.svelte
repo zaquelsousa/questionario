@@ -1,3 +1,4 @@
+
 <script lang="ts">
     import { page } from '$app/state';
     import { onMount } from 'svelte';
@@ -8,7 +9,10 @@
         questionnaireId: string;
         questionnaireTitle: string;
         name: string;
-        answers: Record<string, string | string[]>;
+        answers: Record<
+            string,
+            string | string[] | number | boolean | null | undefined
+        >;
         savedAt: string;
     };
 
@@ -35,69 +39,96 @@
             if (definition) {
                 questionnaire = JSON.parse(definition);
             }
-        } catch {
+        } catch (error) {
+            console.error(
+                'Erro ao carregar a resposta do questionário:',
+                error
+            );
+
             submission = null;
             questionnaire = null;
         }
     });
 
-    
-function downloadCSV() {
-    if (!submission || !questionnaire) return;
-
-    const rows = [
-        ['Question', 'Type', 'Answer']
-    ];
-
-    for (const question of questionnaire.questions) {
-        const answer = submission.answers[question.id];
-
-        let formattedAnswer = '';
-
+    function formatAnswer(
+        answer: AppliedQuestionnaire['answers'][string],
+        questionType: string
+    ): string {
         if (Array.isArray(answer)) {
-            formattedAnswer = answer
+            return answer
                 .map((option, index) =>
-                    question.type === 'priority'
+                    questionType === 'priority'
                         ? `${index + 1}º - ${option}`
                         : option
                 )
-                .join('; ');
-        } else if (typeof answer === 'string') {
-            formattedAnswer = answer;
+                .join(' | ');
         }
 
-        rows.push([
-            question.description,
-            question.type,
-            formattedAnswer
-        ]);
+        if (answer === null || answer === undefined) {
+            return '';
+        }
+
+        return String(answer);
     }
 
-    const escapeCSV = (value: string) =>
-        `"${value.replace(/"/g, '""')}"`;
+    function escapeCSV(value: unknown): string {
+        return `"${String(value ?? '').replace(/"/g, '""')}"`;
+    }
 
-    const csv = '\uFEFF' + rows
-        .map(row => row.map(escapeCSV).join(','))
-        .join('\r\n');
+    function downloadCSV() {
+        if (!submission || !questionnaire) return;
 
-    const blob = new Blob([csv], {
-        type: 'text/csv;charset=utf-8;'
-    });
+        // Cada pergunta será uma coluna.
+        const headers = questionnaire.questions.map(
+            question => question.description
+        );
 
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
+        // Cada resposta corresponde à coluna da pergunta.
+        const answers = questionnaire.questions.map(question => {
+            const answer = submission!.answers[question.id];
 
-    link.href = url;
-    link.download = `${submission.name}.csv`;
-    link.click();
+            return formatAnswer(answer, question.type);
+        });
 
-    URL.revokeObjectURL(url);
-}
+        // Separador ponto e vírgula, adequado ao Excel em pt-BR.
+        const delimiter = ';';
 
+        const rows = [
+            headers,
+            answers
+        ];
+
+        const csv =
+            '\uFEFF' +
+            rows
+                .map(row =>
+                    row.map(escapeCSV).join(delimiter)
+                )
+                .join('\r\n');
+
+        const blob = new Blob([csv], {
+            type: 'text/csv;charset=utf-8;'
+        });
+
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+
+        link.href = url;
+        link.download = `${submission.name}.csv`;
+
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+
+        // Libera a URL depois que o navegador inicia o download.
+        window.setTimeout(() => {
+            URL.revokeObjectURL(url);
+        }, 1000);
+    }
 </script>
 
 <svelte:head>
-    <title>Applied questionnaire</title>
+    <title>Resposta ao questionário</title>
     <meta
         name="viewport"
         content="width=device-width, initial-scale=1, viewport-fit=cover"
@@ -107,10 +138,10 @@ function downloadCSV() {
 <div class="min-h-screen bg-slate-50 px-4 py-6 sm:px-8 sm:py-8">
     <main class="mx-auto max-w-4xl">
         {#if submission && questionnaire}
-            <!-- Page header -->
+            <!-- Cabeçalho -->
             <header class="mb-8">
                 <p class="text-sm font-semibold uppercase tracking-widest text-indigo-600">
-                    Questionnaire response
+                    Resposta ao questionário
                 </p>
 
                 <div class="mt-4">
@@ -122,17 +153,19 @@ function downloadCSV() {
                 </h1>
 
                 <p class="mt-2 break-words text-sm text-slate-500 sm:text-base">
-                    Questionnaire: {questionnaire.title}
+                    Questionário: {questionnaire.title}
                 </p>
-</header>
-            <!-- Response summary -->
+            </header>
+
+            <!-- Resumo da resposta -->
             <section class="mb-6 flex flex-col gap-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between sm:p-6">
                 <div>
                     <h2 class="font-semibold text-slate-900">
-                        Applied questionnaire
+                        Questionário respondido
                     </h2>
+
                     <p class="mt-1 text-sm text-slate-500">
-                        Review the answers submitted in this response.
+                        Confira as respostas enviadas.
                     </p>
                 </div>
 
@@ -157,20 +190,22 @@ function downloadCSV() {
                             <path d="m7 10 5 5 5-5" />
                             <path d="M12 15V3" />
                         </svg>
-                        Download CSV
+
+                        Baixar CSV
                     </span>
                 </button>
             </section>
 
-            <!-- Questions and submitted answers -->
+            <!-- Perguntas e respostas -->
             <section class="space-y-4">
                 <div class="mb-4 flex items-center justify-between gap-3">
                     <div>
                         <h2 class="text-xl font-bold text-slate-900">
-                            Submitted answers
+                            Respostas enviadas
                         </h2>
+
                         <p class="mt-1 text-sm text-slate-500">
-                            The selected options and written answers are shown below.
+                            Confira as opções selecionadas e as respostas fornecidas.
                         </p>
                     </div>
 
@@ -202,7 +237,7 @@ function downloadCSV() {
                                         <p class="whitespace-pre-wrap break-words text-sm leading-relaxed text-slate-700">
                                             {typeof submission.answers[question.id] === 'string'
                                                 ? submission.answers[question.id]
-                                                : 'No answer'}
+                                                : 'Sem resposta'}
                                         </p>
                                     </div>
 
@@ -218,13 +253,14 @@ function downloadCSV() {
                                                     disabled
                                                     class="size-4 shrink-0 accent-indigo-600"
                                                 />
+
                                                 <span class="min-w-0 break-words">
                                                     {option}
                                                 </span>
 
                                                 {#if submission.answers[question.id] === option}
                                                     <span class="ml-auto shrink-0 text-xs font-semibold text-indigo-700">
-                                                        Selected
+                                                        Selecionada
                                                     </span>
                                                 {/if}
                                             </label>
@@ -247,6 +283,7 @@ function downloadCSV() {
                                                     disabled
                                                     class="size-4 shrink-0 rounded accent-indigo-600"
                                                 />
+
                                                 <span class="min-w-0 break-words">
                                                     {option}
                                                 </span>
@@ -254,7 +291,7 @@ function downloadCSV() {
                                                 {#if Array.isArray(submission.answers[question.id]) &&
                                                     submission.answers[question.id].includes(option)}
                                                     <span class="ml-auto shrink-0 text-xs font-semibold text-indigo-700">
-                                                        Selected
+                                                        Selecionada
                                                     </span>
                                                 {/if}
                                             </label>
@@ -272,9 +309,11 @@ function downloadCSV() {
                                                 <span class="flex size-8 shrink-0 items-center justify-center rounded-lg bg-indigo-100 text-sm font-bold text-indigo-700">
                                                     {index + 1}
                                                 </span>
+
                                                 <span class="min-w-0 break-words text-sm font-medium text-slate-800">
                                                     {option}
                                                 </span>
+
                                                 <span class="ml-auto shrink-0 text-xs font-medium text-slate-400">
                                                     {index + 1}º
                                                 </span>
@@ -287,6 +326,7 @@ function downloadCSV() {
                     </article>
                 {/each}
             </section>
+
         {:else}
             <section class="rounded-2xl border-2 border-dashed border-slate-200 bg-white px-6 py-16 text-center shadow-sm">
                 <div class="mx-auto mb-4 flex size-14 items-center justify-center rounded-2xl bg-indigo-50 text-indigo-600">
@@ -311,13 +351,14 @@ function downloadCSV() {
                 </div>
 
                 <h1 class="text-xl font-bold text-slate-900">
-                    Applied questionnaire not found
+                    Resposta ao questionário não encontrada
                 </h1>
 
                 <p class="mt-2 text-sm text-slate-500">
-                    The requested questionnaire response could not be loaded.
+                    Não foi possível carregar a resposta solicitada.
                 </p>
             </section>
         {/if}
     </main>
 </div>
+
